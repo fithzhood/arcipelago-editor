@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it" data-v="1">
+<html lang="it" data-v="2">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -11,13 +11,13 @@
 <script type="importmap">
 { "imports": {
   "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/",
-  "./animatore.js": "./animatore.js?v=1", "./forme.js": "./forme.js?v=1", "./glifi.js": "./glifi.js?v=1",
-  "./logica.js": "./logica.js?v=1", "./stili.js": "./stili.js?v=1", "./misura.js": "./misura.js?v=1",
-  "./pittori/base3d.js": "./pittori/base3d.js?v=1", "./pittori/plastilina.js": "./pittori/plastilina.js?v=1",
-  "./pittori/zone.js": "./pittori/zone.js?v=1", "./pittori/animali.js": "./pittori/animali.js?v=1",
-  "./livelli/tiled.js": "./livelli/tiled.js?v=1", "./livelli/catalogo.js": "./livelli/catalogo.js?v=1",
-  "./editor-regole.js": "./editor-regole.js?v=1", "./banca-remota.js": "./banca-remota.js?v=1",
-  "./prova-livello.js": "./prova-livello.js?v=1"
+  "./animatore.js": "./animatore.js?v=2", "./forme.js": "./forme.js?v=2", "./glifi.js": "./glifi.js?v=2",
+  "./logica.js": "./logica.js?v=2", "./stili.js": "./stili.js?v=2", "./misura.js": "./misura.js?v=2",
+  "./pittori/base3d.js": "./pittori/base3d.js?v=2", "./pittori/plastilina.js": "./pittori/plastilina.js?v=2",
+  "./pittori/zone.js": "./pittori/zone.js?v=2", "./pittori/animali.js": "./pittori/animali.js?v=2",
+  "./livelli/tiled.js": "./livelli/tiled.js?v=2", "./livelli/catalogo.js": "./livelli/catalogo.js?v=2",
+  "./editor-regole.js": "./editor-regole.js?v=2", "./banca-remota.js": "./banca-remota.js?v=2",
+  "./prova-livello.js": "./prova-livello.js?v=2"
 } }
 </script>
 <style>
@@ -88,7 +88,7 @@
     background: rgba(29,27,36,0.88); border-radius: 10px; padding: 10px; }
   #avviso { position: fixed; left: 12px; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 30; text-align: center;
     background: #3a3450; border: 1px solid #5b5275; border-radius: 10px; padding: 11px; box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
-  #versione { position: fixed; right: 8px; bottom: 2px; font-size: 10px; color: #6f6880; pointer-events: none; z-index: 5; }
+  #versione { font-size: 11px; color: #6f6880; margin: 16px 2px 0; }
 </style>
 </head>
 <body>
@@ -98,6 +98,7 @@
     <p id="stato-banca"></p>
     <button id="vai-chiave" class="primo" data-a="chiave" hidden>Collega la banca</button>
     <ul id="elenco"></ul>
+    <p id="versione"></p>
   </div>
   <div class="piede"><button class="primo" data-a="nuovo">Nuovo livello</button></div>
 </section>
@@ -146,7 +147,6 @@
 
 <div id="prova" hidden></div>
 <div id="avviso" hidden></div>
-<div id="versione"></div>
-<script type="module" src="editor-telefono.js?v=1"></script>
+<script type="module" src="editor-telefono.js?v=2"></script>
 </body>
 </html>
