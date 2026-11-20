@@ -425,6 +425,16 @@ new ResizeObserver(() => {
   disegna();
 }).observe(tela);
 img.onload = () => { if (corrente) { costruisciSchede(); disegna(); } };
+// nell'app Android (Capacitor), il tasto Indietro: dalla prova all'editor, dall'editor (o da Nuovo
+// livello, Collegamento) all'elenco, dall'elenco si esce. Le modifiche non salvate restano come bozza.
+if (window.Capacitor?.isNativePlatform?.()) {
+  window.Capacitor.Plugins.App?.addListener('backButton', () => {
+    if (!$('#prova').hidden) { $('#prova [data-a=chiudi]')?.click(); return; }
+    if (!$('#livelli').hidden) { window.Capacitor.Plugins.App.exitApp(); return; }
+    if (corrente) aggiornaStato();
+    corrente = null; apriElenco();
+  });
+}
 await codiceDalLink();
 $('#versione').textContent = 'editor ' + VERSIONE + (sviluppo && !leggi('arc-editor-codice') ? ' · banca locale di prova' : '');
 await scegliBanca();
