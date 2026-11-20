@@ -96,3 +96,64 @@ export function bancaLocale() {
     },
   };
 }
+
+/**
+ * La banca senza GitHub (piano B, 20/11/2026: la chiave di GitHub non si riusciva a creare). I livelli
+ * stanno sul telefono; salvando, partono anche verso il PC sul canale cifrato (canale-cifrato.js), e
+ * dal canale arrivano quelli che manda il PC. Se il canale non risponde, il livello resta "da
+ * mandare" e si riprova alla prossima occasione.
+ */
+export async function bancaCanale(codice) {
+  const { apriCanale } = await import('./canale-cifrato.js');
+  const c = await apriCanale(codice, { da: 'telefono' });
+  const L = 'arc-editor-livelli', Q = 'arc-editor-da-mandare';
+  const leggiLS = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const scriviLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
+  const tutti = () => leggiLS(L, {});
+  async function rimanda() {
+    const q = leggiLS(Q, []), resta = [], db = tutti();
+    for (const nome of q) {
+      const l = db[nome]; if (!l) continue;
+      try { await c.mandaLivello({ nome, titolo: prop(l.mappa, 'titolo') || nome, aggiornato: prop(l.mappa, 'aggiornato'), origine: prop(l.mappa, 'origine'), mappa: l.mappa }); }
+      catch { resta.push(nome); }
+    }
+    scriviLS(Q, resta);
+  }
+  return {
+    tipo: 'canale',
+    async prova() { await c.leggi({ since: '1m' }); return true; },
+    /** Prende dal canale i livelli nuovi del PC, rimanda quelli rimasti indietro, e dà l'elenco del telefono. */
+    async elenco() {
+      let avviso = '';
+      try {
+        const arrivati = await c.leggi(), db = tutti();
+        let nuovi = 0, scaduti = 0;
+        for (const l of arrivati) {
+          if (l.da !== 'pc') continue;
+          if (l.scaduto) { if (!db[l.nome]) scaduti++; continue; }
+          if (!db[l.nome] || (prop(db[l.nome].mappa, 'aggiornato') || '') < (l.aggiornato || '')) { db[l.nome] = { mappa: l.mappa }; nuovi++; }
+        }
+        if (nuovi && !scriviLS(L, db)) avviso = 'Il telefono non ha più spazio per i livelli.';
+        if (scaduti) avviso = `${scaduti} livelli mandati dal PC sono scaduti nel canale: chiedi di rimandarli.`;
+        await rimanda();
+      } catch (err) { avviso = 'Il canale non risponde: vedi i livelli già sul telefono. ' + err.message; }
+      const q = new Set(leggiLS(Q, []));
+      const out = Object.entries(tutti()).map(([nome, l]) => ({ ...riassunto(nome, l.mappa, null), daMandare: q.has(nome) }));
+      out.avviso = avviso;
+      return out;
+    },
+    async leggi(nome) {
+      const l = tutti()[nome];
+      if (!l) throw new Error('Il livello ' + nome + ' non è su questo telefono.');
+      return { mappa: l.mappa, sha: null };
+    },
+    /** Salva sul telefono e manda al PC. Restituisce { mandato }: false se il canale non ha risposto. */
+    async scrivi(nome, mappa) {
+      const db = tutti(); db[nome] = { mappa };
+      if (!scriviLS(L, db)) throw new Error('Il telefono non ha più spazio per i livelli.');
+      try { await c.mandaLivello({ nome, titolo: prop(mappa, 'titolo') || nome, aggiornato: prop(mappa, 'aggiornato'), origine: prop(mappa, 'origine'), mappa }); }
+      catch { const q = leggiLS(Q, []); if (!q.includes(nome)) q.push(nome); scriviLS(Q, q); return { mandato: false }; }
+      return { mandato: true };
+    },
+  };
+}

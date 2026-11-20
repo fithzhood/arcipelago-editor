@@ -7,12 +7,15 @@
 //   - Prova: il livello nel gioco vero (prova-livello.js).
 //   - Salva: nella banca col nome scritto in alto; cambiando nome si salva un livello nuovo e
 //     l'altro resta. Le modifiche non salvate restano sul telefono come bozza.
+//   - Collegamento col PC: un canale cifrato come quello di Spola (canale-cifrato.js), aperto da un
+//     link con #k=<codice> che apre il PC. I livelli stanno sul telefono e, salvando, partono anche
+//     verso il PC; quelli che manda il PC arrivano aprendo l'elenco.
 import { CATALOGO, LATO, COLONNE } from './livelli/catalogo.js';
 import { daTiled } from './livelli/tiled.js';
 import { caricaLivello } from './logica.js';
 import { STRATI, gidDi, applica, gruppo, oggetti, prop, mettiProp, completa, togliSigillo, sottolivelloVuoto } from './editor-regole.js';
 import { misura, esplora, provaSigilli } from './misura.js';
-import { bancaGitHub, bancaLocale } from './banca-remota.js';
+import { bancaLocale, bancaCanale } from './banca-remota.js';
 
 const VERSIONE = new URL(import.meta.url).searchParams.get('v') || 'dev';
 const $ = (s) => document.querySelector(s);
@@ -37,28 +40,37 @@ function avvisa(testo, ms = 3200) {
 }
 
 // ---------------------------------------------------------------- la banca
-function scegliBanca() {
-  const chiave = leggi('arc-editor-chiave');
-  if (chiave) banca = bancaGitHub(chiave);
-  else if (sviluppo) banca = bancaLocale();
-  else banca = null;
+async function scegliBanca() {
+  const codice = leggi('arc-editor-codice');
+  if (codice) { try { banca = await bancaCanale(codice); return; } catch (err) { avvisa(err.message); } }
+  banca = sviluppo ? bancaLocale() : null;
+}
+/** Il link che apre il PC porta il codice nel segno #k=: si salva e si toglie dall'indirizzo. */
+async function codiceDalLink() {
+  const k = new URLSearchParams(location.hash.slice(1)).get('k');
+  if (!k) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  const { codiceValido } = await import('./canale-cifrato.js');
+  if (!codiceValido(k)) return avvisa('Il link di collegamento non è valido.');
+  scrivi('arc-editor-codice', k);
+  avvisa('Collegato al PC.');
 }
 async function apriElenco() {
   mostra('livelli');
   const st = $('#stato-banca'), ul = $('#elenco');
-  if (!banca) { st.textContent = 'Per vedere e salvare i livelli serve la chiave della banca.'; ul.innerHTML = ''; $('#vai-chiave').hidden = false; return; }
+  if (!banca) { st.textContent = 'Per salvare i livelli e mandarli al PC serve il collegamento.'; ul.innerHTML = ''; $('#vai-chiave').hidden = false; return; }
   $('#vai-chiave').hidden = true;
-  st.textContent = 'Caricamento della banca in corso…';
+  st.textContent = 'Arrivo dei livelli dal PC in corso…';
   try { elenco = await banca.elenco(); } catch (err) { st.textContent = err.message; return; }
   elenco.sort((a, b) => b.aggiornato.localeCompare(a.aggiornato));
   const bozze = leggi('arc-editor-bozze', {});
-  st.textContent = elenco.length ? '' : 'La banca è vuota: comincia con Nuovo livello.';
+  st.textContent = elenco.avviso || (elenco.length ? '' : 'Ancora nessun livello: comincia con Nuovo livello, o chiedi al PC di mandarti quelli del gioco.');
   ul.innerHTML = '';
   // prima le bozze dei livelli nuovi mai salvati
   for (const [k, b] of Object.entries(bozze)) if (k.startsWith('nuovo:')) ul.appendChild(voce(prop(b.mappa, 'titolo') || 'Livello senza nome', 'bozza non salvata', () => apriEditor({ nome: null, sha: null, mappa: b.mappa, salvata: null, chiaveBozza: k })));
   for (const l of elenco) {
     const quando = l.aggiornato ? new Date(l.aggiornato).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-    const nota = [l.mondo ? 'overworld' : '', bozze[l.nome] ? 'modifiche non salvate' : '', quando].filter(Boolean).join(' · ');
+    const nota = [l.mondo ? 'overworld' : '', bozze[l.nome] ? 'modifiche non salvate' : '', l.daMandare ? 'da mandare al PC' : '', quando].filter(Boolean).join(' · ');
     ul.appendChild(voce(l.titolo, nota, () => apriDallaBanca(l)));
   }
 }
@@ -318,7 +330,7 @@ function calcola() {
 
 // ---------------------------------------------------------------- salvare, provare, nuovo
 async function salva() {
-  if (!banca) return avvisa('Per salvare nella banca serve la chiave (in Livelli, Chiave).');
+  if (!banca) return avvisa('Per salvare serve il collegamento col PC (in Livelli, Collegamento).');
   const titolo = $('#titolo').value.trim();
   if (!titolo) { $('#titolo').focus(); return avvisa('Scrivi il nome del livello in alto.'); }
   const nome = nomeFile(titolo);
@@ -331,13 +343,13 @@ async function salva() {
   for (const n of ['soluzione', 'mosse', 'vicoli']) mettiProp(m, n, undefined);
   $('#salva').disabled = true; avvisa('Salvataggio in corso…', 0);
   try {
-    const nuovoSha = await banca.scrivi(nome, m, sha);
+    const esito = await banca.scrivi(nome, m, sha), nuovoSha = typeof esito === 'string' ? esito : null;
     const bozze = leggi('arc-editor-bozze', {}); delete bozze[corrente.chiaveBozza]; scrivi('arc-editor-bozze', bozze);
     corrente = { ...corrente, nome, sha: nuovoSha, mappa: m, salvata: copia(m), chiaveBozza: nome };
     const i = elenco.findIndex((l) => l.nome === nome), q = { nome, sha: nuovoSha, titolo, aggiornato: prop(m, 'aggiornato'), origine: prop(m, 'origine') || '', mondo: mondo() };
     if (i >= 0) elenco[i] = q; else elenco.push(q);
     aggiornaStato();
-    avvisa(`Salvato nella banca come «${titolo}».`);
+    avvisa(esito?.mandato === false ? `«${titolo}» è salvato sul telefono. Al PC lo mando appena il canale risponde.` : `«${titolo}» è salvato e mandato al PC.`, 4500);
   } catch (err) { avvisa(err.message, 6000); }
   $('#salva').disabled = false;
 }
@@ -355,20 +367,22 @@ function nuovo(W, H) {
   $('#titolo').focus();
 }
 
-// ---------------------------------------------------------------- la chiave
+// ---------------------------------------------------------------- il collegamento col PC
 function apriChiave() {
   mostra('chiave');
   $('#chiave-campo').value = '';
-  $('#chiave-stato').textContent = leggi('arc-editor-chiave') ? 'Una chiave è già salvata su questo telefono. Incollane un\'altra per sostituirla.' : '';
+  $('#chiave-stato').textContent = leggi('arc-editor-codice') ? 'Questo telefono è collegato al PC.' : 'Questo telefono non è ancora collegato al PC.';
 }
 async function salvaChiave() {
   const k = $('#chiave-campo').value.trim();
   if (!k) return;
-  $('#chiave-stato').textContent = 'Prova della chiave in corso…';
-  try { await bancaGitHub(k).prova(); } catch (err) { $('#chiave-stato').textContent = err.message; return; }
-  scrivi('arc-editor-chiave', k); $('#chiave-campo').value = '';
-  scegliBanca(); apriElenco();
-  avvisa('Chiave salvata: la banca è collegata.');
+  const { codiceValido } = await import('./canale-cifrato.js');
+  if (!codiceValido(k)) { $('#chiave-stato').textContent = 'Il codice non è giusto: sono 24 caratteri, a gruppi di quattro.'; return; }
+  $('#chiave-stato').textContent = 'Prova del collegamento in corso…';
+  try { await (await bancaCanale(k)).prova(); } catch (err) { $('#chiave-stato').textContent = err.message; return; }
+  scrivi('arc-editor-codice', k); $('#chiave-campo').value = '';
+  await scegliBanca(); apriElenco();
+  avvisa('Collegato al PC.');
 }
 
 // ---------------------------------------------------------------- avvio
@@ -380,7 +394,8 @@ document.addEventListener('click', (e) => {
   else if (a.startsWith('misura-')) { const [W, H] = a.slice(7).split('x').map(Number); nuovo(W, H); }
   else if (a === 'chiave') apriChiave();
   else if (a === 'chiave-salva') salvaChiave();
-  else if (a === 'chiave-togli') { try { localStorage.removeItem('arc-editor-chiave'); } catch { /* niente */ } scegliBanca(); $('#chiave-stato').textContent = 'Chiave tolta da questo telefono.'; }
+  else if (a === 'chiave-togli') { try { localStorage.removeItem('arc-editor-codice'); } catch { /* niente */ } scegliBanca().then(() => { $('#chiave-stato').textContent = 'Il telefono non è più collegato al PC. I livelli salvati qui restano.'; }); }
+  else if (a === 'aggiorna') apriElenco();
   else if (a === 'annulla') annullaModifica();
   else if (a === 'prova') prova();
   else if (a === 'salva') salva();
@@ -389,7 +404,8 @@ for (const b of document.querySelectorAll('#schede button')) b.onclick = () => {
 $('#titolo').addEventListener('input', () => aggiornaStato());
 addEventListener('resize', () => { if (corrente && !$('#editor').hidden) { misuraTela(); disegna(); } });
 img.onload = () => { if (corrente) { costruisciSchede(); disegna(); } };
-$('#versione').textContent = 'editor ' + VERSIONE + (sviluppo && !leggi('arc-editor-chiave') ? ' · banca locale di prova' : '');
-scegliBanca();
+await codiceDalLink();
+$('#versione').textContent = 'editor ' + VERSIONE + (sviluppo && !leggi('arc-editor-codice') ? ' · banca locale di prova' : '');
+await scegliBanca();
 apriElenco();
 window.__editor = { get corrente() { return corrente; }, get vista() { return vista; }, applicaIn: (x, y) => { ricorda(); tocca([x, y]); aggiornaStato(); calcolaPresto(); }, scegli: (t) => { strumento = t; } };

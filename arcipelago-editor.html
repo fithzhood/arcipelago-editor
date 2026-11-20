@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it" data-v="2">
+<html lang="it" data-v="3">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -11,13 +11,13 @@
 <script type="importmap">
 { "imports": {
   "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/",
-  "./animatore.js": "./animatore.js?v=2", "./forme.js": "./forme.js?v=2", "./glifi.js": "./glifi.js?v=2",
-  "./logica.js": "./logica.js?v=2", "./stili.js": "./stili.js?v=2", "./misura.js": "./misura.js?v=2",
-  "./pittori/base3d.js": "./pittori/base3d.js?v=2", "./pittori/plastilina.js": "./pittori/plastilina.js?v=2",
-  "./pittori/zone.js": "./pittori/zone.js?v=2", "./pittori/animali.js": "./pittori/animali.js?v=2",
-  "./livelli/tiled.js": "./livelli/tiled.js?v=2", "./livelli/catalogo.js": "./livelli/catalogo.js?v=2",
-  "./editor-regole.js": "./editor-regole.js?v=2", "./banca-remota.js": "./banca-remota.js?v=2",
-  "./prova-livello.js": "./prova-livello.js?v=2"
+  "./animatore.js": "./animatore.js?v=3", "./forme.js": "./forme.js?v=3", "./glifi.js": "./glifi.js?v=3",
+  "./logica.js": "./logica.js?v=3", "./stili.js": "./stili.js?v=3", "./misura.js": "./misura.js?v=3",
+  "./pittori/base3d.js": "./pittori/base3d.js?v=3", "./pittori/plastilina.js": "./pittori/plastilina.js?v=3",
+  "./pittori/zone.js": "./pittori/zone.js?v=3", "./pittori/animali.js": "./pittori/animali.js?v=3",
+  "./livelli/tiled.js": "./livelli/tiled.js?v=3", "./livelli/catalogo.js": "./livelli/catalogo.js?v=3",
+  "./editor-regole.js": "./editor-regole.js?v=3", "./banca-remota.js": "./banca-remota.js?v=3",
+  "./prova-livello.js": "./prova-livello.js?v=3", "./canale-cifrato.js": "./canale-cifrato.js?v=3"
 } }
 </script>
 <style>
@@ -93,10 +93,10 @@
 </head>
 <body>
 <section id="livelli">
-  <header><h1>Livelli</h1><button data-a="chiave">Chiave</button></header>
+  <header><h1>Livelli</h1><button data-a="aggiorna">Aggiorna</button><button data-a="chiave">Collegamento</button></header>
   <div class="scorre">
     <p id="stato-banca"></p>
-    <button id="vai-chiave" class="primo" data-a="chiave" hidden>Collega la banca</button>
+    <button id="vai-chiave" class="primo" data-a="chiave" hidden>Collega al PC</button>
     <ul id="elenco"></ul>
     <p id="versione"></p>
   </div>
@@ -128,25 +128,22 @@
 </section>
 
 <section id="chiave" hidden>
-  <header><button data-a="livelli">Livelli</button><h1>Chiave della banca</h1></header>
+  <header><button data-a="livelli">Livelli</button><h1>Collegamento</h1></header>
   <div class="scorre">
-    <p>La banca è un repo privato su GitHub. Questo telefono ci entra con una chiave che vale solo per lei:</p>
-    <ol>
-      <li>Apri <code>github.com/settings/personal-access-tokens/new</code> col tuo account.</li>
-      <li>Nome a piacere, per esempio <code>editor telefono</code>; scadenza come vuoi.</li>
-      <li>In <b>Repository access</b> scegli <b>Only select repositories</b> e poi <code>arcipelago-banca</code>.</li>
-      <li>In <b>Permissions → Repository permissions</b> metti <b>Contents</b> su <b>Read and write</b>.</li>
-      <li><b>Generate token</b>, copia la chiave e incollala qui sotto.</li>
-    </ol>
-    <input type="password" id="chiave-campo" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
-    <div class="piede" style="padding:0;background:none;border:0"><button class="primo" data-a="chiave-salva">Salva la chiave</button><button data-a="chiave-togli">Togli la chiave</button></div>
     <p id="chiave-stato"></p>
-    <p style="color:var(--tenue);font-size:13px">La chiave resta solo su questo telefono e serve solo per la banca dei livelli.</p>
+    <p>Il telefono e il PC si parlano su un canale cifrato, come Spola: quando salvi, il livello resta
+      qui e parte anche verso il PC; quelli che manda il PC arrivano aprendo l'elenco.</p>
+    <p>Di solito il collegamento lo fa il PC, aprendo sul telefono un link. Se serve, si può scrivere il
+      codice a mano:</p>
+    <input type="password" id="chiave-campo" placeholder="codice di 24 caratteri" autocomplete="off" spellcheck="false">
+    <div class="piede" style="padding:0;background:none;border:0"><button class="primo" data-a="chiave-salva">Collega</button><button data-a="chiave-togli">Scollega</button></div>
+    <p style="color:var(--tenue);font-size:13px">Il canale tiene i messaggi 12 ore: un livello salvato quando il PC è spento
+      arriva lo stesso se il PC lo prende entro quel tempo, altrimenti si rimanda. I livelli restano sempre anche qui.</p>
   </div>
 </section>
 
 <div id="prova" hidden></div>
 <div id="avviso" hidden></div>
-<script type="module" src="editor-telefono.js?v=2"></script>
+<script type="module" src="editor-telefono.js?v=3"></script>
 </body>
 </html>
