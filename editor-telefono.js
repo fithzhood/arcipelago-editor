@@ -402,7 +402,17 @@ document.addEventListener('click', (e) => {
 });
 for (const b of document.querySelectorAll('#schede button')) b.onclick = () => { scheda = b.dataset.s; costruisciSchede(); };
 $('#titolo').addEventListener('input', () => aggiornaStato());
-addEventListener('resize', () => { if (corrente && !$('#editor').hidden) { misuraTela(); disegna(); } });
+// la mappa si rimisura ogni volta che cambia la sua misura sullo schermo (rotazione, tastiera, una
+// scheda più alta): se la tela interna resta della misura vecchia, il browser la stira e ogni tocco
+// finisce in una casella sbagliata. La vista resta centrata dov'era.
+new ResizeObserver(() => {
+  if (!corrente || $('#editor').hidden) return;
+  const w0 = tela.width, h0 = tela.height;
+  misuraTela();
+  if (tela.width === w0 && tela.height === h0) return;
+  if (w0 > 1 && h0 > 1) { vista.x += (tela.width - w0) / 2; vista.y += (tela.height - h0) / 2; }
+  disegna();
+}).observe(tela);
 img.onload = () => { if (corrente) { costruisciSchede(); disegna(); } };
 await codiceDalLink();
 $('#versione').textContent = 'editor ' + VERSIONE + (sviluppo && !leggi('arc-editor-codice') ? ' · banca locale di prova' : '');

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it" data-v="3">
+<html lang="it" data-v="4">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -11,13 +11,13 @@
 <script type="importmap">
 { "imports": {
   "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/",
-  "./animatore.js": "./animatore.js?v=3", "./forme.js": "./forme.js?v=3", "./glifi.js": "./glifi.js?v=3",
-  "./logica.js": "./logica.js?v=3", "./stili.js": "./stili.js?v=3", "./misura.js": "./misura.js?v=3",
-  "./pittori/base3d.js": "./pittori/base3d.js?v=3", "./pittori/plastilina.js": "./pittori/plastilina.js?v=3",
-  "./pittori/zone.js": "./pittori/zone.js?v=3", "./pittori/animali.js": "./pittori/animali.js?v=3",
-  "./livelli/tiled.js": "./livelli/tiled.js?v=3", "./livelli/catalogo.js": "./livelli/catalogo.js?v=3",
-  "./editor-regole.js": "./editor-regole.js?v=3", "./banca-remota.js": "./banca-remota.js?v=3",
-  "./prova-livello.js": "./prova-livello.js?v=3", "./canale-cifrato.js": "./canale-cifrato.js?v=3"
+  "./animatore.js": "./animatore.js?v=4", "./forme.js": "./forme.js?v=4", "./glifi.js": "./glifi.js?v=4",
+  "./logica.js": "./logica.js?v=4", "./stili.js": "./stili.js?v=4", "./misura.js": "./misura.js?v=4",
+  "./pittori/base3d.js": "./pittori/base3d.js?v=4", "./pittori/plastilina.js": "./pittori/plastilina.js?v=4",
+  "./pittori/zone.js": "./pittori/zone.js?v=4", "./pittori/animali.js": "./pittori/animali.js?v=4",
+  "./livelli/tiled.js": "./livelli/tiled.js?v=4", "./livelli/catalogo.js": "./livelli/catalogo.js?v=4",
+  "./editor-regole.js": "./editor-regole.js?v=4", "./banca-remota.js": "./banca-remota.js?v=4",
+  "./prova-livello.js": "./prova-livello.js?v=4", "./canale-cifrato.js": "./canale-cifrato.js?v=4"
 } }
 </script>
 <style>
@@ -60,8 +60,9 @@
   #schede button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 10px 2px; font-size: 13.5px; min-height: 40px;
     border-bottom: 3px solid transparent; }
   #schede button.scelta { border-bottom-color: var(--oro); color: #fff; }
-  #tavolozza { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 8px 10px 10px; background: var(--pannello);
-    max-height: 30vh; overflow-y: auto; }
+  /* altezza fissa: cambiando scheda la mappa non deve cambiare misura (i tocchi andavano fuori posto) */
+  #tavolozza { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 5px; padding: 8px 10px 10px;
+    background: var(--pannello); height: 27vh; box-sizing: border-box; overflow-y: auto; flex: none; }
   #tavolozza .tess { padding: 2px; min-height: 0; line-height: 0; border-radius: 8px; }
   #tavolozza .tess canvas { width: 40px; height: 40px; border-radius: 5px; }
   #tavolozza .scelta { outline: 3px solid var(--oro); outline-offset: 0; }
@@ -144,6 +145,6 @@
 
 <div id="prova" hidden></div>
 <div id="avviso" hidden></div>
-<script type="module" src="editor-telefono.js?v=3"></script>
+<script type="module" src="editor-telefono.js?v=4"></script>
 </body>
 </html>
