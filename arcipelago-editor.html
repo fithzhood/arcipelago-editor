@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="it" data-v="1">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-store">
+<meta name="theme-color" content="#1d1b24">
+<title>Arcipelago Editor</title>
+<!-- L'editor dei livelli da telefono: non è il gioco. Ogni modulo porta ?v=N come nel gioco
+     (a ogni pubblicazione si alza in tutte le righe e in data-v). -->
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/",
+  "./animatore.js": "./animatore.js?v=1", "./forme.js": "./forme.js?v=1", "./glifi.js": "./glifi.js?v=1",
+  "./logica.js": "./logica.js?v=1", "./stili.js": "./stili.js?v=1", "./misura.js": "./misura.js?v=1",
+  "./pittori/base3d.js": "./pittori/base3d.js?v=1", "./pittori/plastilina.js": "./pittori/plastilina.js?v=1",
+  "./pittori/zone.js": "./pittori/zone.js?v=1", "./pittori/animali.js": "./pittori/animali.js?v=1",
+  "./livelli/tiled.js": "./livelli/tiled.js?v=1", "./livelli/catalogo.js": "./livelli/catalogo.js?v=1",
+  "./editor-regole.js": "./editor-regole.js?v=1", "./banca-remota.js": "./banca-remota.js?v=1",
+  "./prova-livello.js": "./prova-livello.js?v=1"
+} }
+</script>
+<style>
+  [hidden] { display: none !important; }
+  :root { --fondo: #1d1b24; --pannello: #26232f; --linea: #3d3849; --testo: #ece6f6; --tenue: #a79fb8;
+    --oro: #f2c040; --viola: #6b57a8; --bene: #a8dc90; --male: #ff9c8a; }
+  html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--testo); overflow: hidden; }
+  body { font: 15px/1.35 system-ui, "Segoe UI", Roboto, sans-serif; user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent; }
+  input { user-select: text; -webkit-user-select: text; }
+  button { font: inherit; color: inherit; background: #34303f; border: 1px solid #4a4558; border-radius: 9px;
+    padding: 9px 13px; cursor: pointer; min-height: 42px; }
+  button:active { background: #45405a; }
+  button.primo { background: var(--viola); border-color: #8a76c8; }
+  body > section { position: fixed; inset: 0; display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--pannello); border-bottom: 1px solid var(--linea); }
+  header h1 { flex: 1; margin: 0; font-size: 19px; font-weight: 650; }
+  .scorre { flex: 1; overflow-y: auto; padding: 10px 12px 18px; }
+  .piede { padding: 10px 12px; background: var(--pannello); border-top: 1px solid var(--linea); display: flex; gap: 8px; }
+  .piede button { flex: 1; }
+  #stato-banca { color: var(--tenue); margin: 4px 0 10px; }
+  #elenco { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  #elenco button { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 11px 13px; }
+  #elenco .t { font-size: 16.5px; font-weight: 600; }
+  #elenco .n { font-size: 13px; color: var(--tenue); }
+  .misure { display: flex; flex-direction: column; gap: 10px; }
+  .misure button { text-align: left; padding: 13px; }
+  .misure small { display: block; color: var(--tenue); font-size: 13px; margin-top: 2px; }
+  /* editor */
+  #editor header input { flex: 1; min-width: 0; font: 600 16px/1.2 system-ui, sans-serif; color: var(--testo);
+    background: var(--fondo); border: 1px solid #4a4558; border-radius: 8px; padding: 9px 10px; }
+  #mappa { flex: 1; min-height: 0; width: 100%; display: block; touch-action: none; }
+  .barra { display: flex; gap: 6px; padding: 7px 10px; background: var(--pannello); border-top: 1px solid var(--linea); align-items: center; }
+  .barra button { flex: 1; padding: 8px 6px; }
+  #salva.sporco { background: var(--viola); border-color: #8a76c8; }
+  #misura { padding: 6px 12px; font-size: 13px; color: var(--tenue); background: var(--fondo); min-height: 18px; }
+  #misura.bene { color: var(--bene); } #misura.male { color: var(--male); }
+  #schede { display: flex; background: var(--pannello); border-top: 1px solid var(--linea); }
+  #schede button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 10px 2px; font-size: 13.5px; min-height: 40px;
+    border-bottom: 3px solid transparent; }
+  #schede button.scelta { border-bottom-color: var(--oro); color: #fff; }
+  #tavolozza { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 8px 10px 10px; background: var(--pannello);
+    max-height: 30vh; overflow-y: auto; }
+  #tavolozza .tess { padding: 2px; min-height: 0; line-height: 0; border-radius: 8px; }
+  #tavolozza .tess canvas { width: 40px; height: 40px; border-radius: 5px; }
+  #tavolozza .scelta { outline: 3px solid var(--oro); outline-offset: 0; }
+  #tavolozza .etich { flex-basis: 100%; font-size: 12px; color: var(--tenue); margin-top: 4px; }
+  #tavolozza .attr { min-width: 90px; }
+  #sigillo { position: absolute; left: 10px; right: 10px; bottom: 210px; background: var(--pannello); border: 1px solid var(--linea);
+    border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
+  #sigillo label { display: flex; align-items: center; gap: 8px; }
+  #sigillo input[type=text] { flex: 1; min-width: 0; font: inherit; color: var(--testo); background: var(--fondo); border: 1px solid #4a4558; border-radius: 7px; padding: 8px; }
+  #sigillo .righe { display: flex; gap: 8px; } #sigillo .righe button { flex: 1; }
+  /* chiave */
+  #chiave ol { padding-left: 20px; margin: 6px 0 14px; } #chiave li { margin-bottom: 7px; }
+  #chiave input { width: 100%; box-sizing: border-box; font: 14px ui-monospace, Consolas, monospace; color: var(--testo); background: var(--fondo);
+    border: 1px solid #4a4558; border-radius: 8px; padding: 11px; margin: 6px 0 10px; }
+  #chiave-stato { color: var(--tenue); min-height: 20px; }
+  #chiave code { font-size: 13px; color: #fff; }
+  /* prova */
+  #prova { position: fixed; inset: 0; background: #000; z-index: 20; display: flex; flex-direction: column; }
+  #prova .prova-scena { flex: 1; min-height: 0; touch-action: none; }
+  #prova .prova-scena canvas { display: block; }
+  #prova .prova-comandi { display: flex; gap: 6px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: var(--pannello); }
+  #prova .prova-comandi button { flex: 1; padding: 8px 4px; }
+  #prova .prova-avviso { position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 12px; right: 12px; text-align: center;
+    background: rgba(29,27,36,0.88); border-radius: 10px; padding: 10px; }
+  #avviso { position: fixed; left: 12px; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 30; text-align: center;
+    background: #3a3450; border: 1px solid #5b5275; border-radius: 10px; padding: 11px; box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
+  #versione { position: fixed; right: 8px; bottom: 2px; font-size: 10px; color: #6f6880; pointer-events: none; z-index: 5; }
+</style>
+</head>
+<body>
+<section id="livelli">
+  <header><h1>Livelli</h1><button data-a="chiave">Chiave</button></header>
+  <div class="scorre">
+    <p id="stato-banca"></p>
+    <button id="vai-chiave" class="primo" data-a="chiave" hidden>Collega la banca</button>
+    <ul id="elenco"></ul>
+  </div>
+  <div class="piede"><button class="primo" data-a="nuovo">Nuovo livello</button></div>
+</section>
+
+<section id="nuovo" hidden>
+  <header><button data-a="livelli">Livelli</button><h1>Nuovo livello</h1></header>
+  <div class="scorre misure">
+    <p>Due isole, il coniglio a sinistra e la meta a destra: il resto lo disegni tu.</p>
+    <button data-a="misura-9x6">Piccolo<small>9 × 6 caselle</small></button>
+    <button data-a="misura-11x7">Medio<small>11 × 7 caselle</small></button>
+    <button data-a="misura-13x9">Grande<small>13 × 9 caselle</small></button>
+  </div>
+</section>
+
+<section id="editor" hidden>
+  <header><button data-a="livelli">Livelli</button><input id="titolo" placeholder="Nome del livello" spellcheck="false" autocomplete="off"></header>
+  <canvas id="mappa"></canvas>
+  <div id="misura"></div>
+  <div class="barra"><button data-a="annulla">Annulla</button><button data-a="prova">Prova</button><button id="salva" data-a="salva">Salva</button></div>
+  <nav id="schede"><button data-s="terreno">Terreno</button><button data-s="lastre">Lastre</button><button data-s="glifi">Glifi</button><button data-s="segni">Segni</button><button data-s="altro">Altro</button></nav>
+  <div id="tavolozza"></div>
+  <div id="sigillo" hidden>
+    <label>Sottolivello <input type="text" id="sig-nome" spellcheck="false" autocomplete="off"></label>
+    <label><input type="checkbox" id="sig-facoltativo"> facoltativo</label>
+    <div class="righe"><button id="sig-togli">Togli sigillo</button><button id="sig-chiudi">Fatto</button></div>
+  </div>
+</section>
+
+<section id="chiave" hidden>
+  <header><button data-a="livelli">Livelli</button><h1>Chiave della banca</h1></header>
+  <div class="scorre">
+    <p>La banca è un repo privato su GitHub. Questo telefono ci entra con una chiave che vale solo per lei:</p>
+    <ol>
+      <li>Apri <code>github.com/settings/personal-access-tokens/new</code> col tuo account.</li>
+      <li>Nome a piacere, per esempio <code>editor telefono</code>; scadenza come vuoi.</li>
+      <li>In <b>Repository access</b> scegli <b>Only select repositories</b> e poi <code>arcipelago-banca</code>.</li>
+      <li>In <b>Permissions → Repository permissions</b> metti <b>Contents</b> su <b>Read and write</b>.</li>
+      <li><b>Generate token</b>, copia la chiave e incollala qui sotto.</li>
+    </ol>
+    <input type="password" id="chiave-campo" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+    <div class="piede" style="padding:0;background:none;border:0"><button class="primo" data-a="chiave-salva">Salva la chiave</button><button data-a="chiave-togli">Togli la chiave</button></div>
+    <p id="chiave-stato"></p>
+    <p style="color:var(--tenue);font-size:13px">La chiave resta solo su questo telefono e serve solo per la banca dei livelli.</p>
+  </div>
+</section>
+
+<div id="prova" hidden></div>
+<div id="avviso" hidden></div>
+<div id="versione"></div>
+<script type="module" src="editor-telefono.js?v=1"></script>
+</body>
+</html>
