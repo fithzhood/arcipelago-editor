@@ -72,7 +72,7 @@ export async function apriCanale(codice, { da = 'telefono' } = {}) {
      * arrivo. Ognuno: { id, tempo, nome, titolo, aggiornato, origine, da, mappa } oppure, per un
      * allegato ormai scaduto, { ..., scaduto: true } senza mappa.
      */
-    async leggi({ since = '12h' } = {}) {
+    async leggi({ since = '12h', serve = () => true } = {}) {
       let r;
       try { r = await fetch(`${SERVER}/${canale}/json?poll=1&since=${encodeURIComponent(since)}`, { cache: 'no-store' }); }
       catch { throw new Error('Connessione non disponibile.'); }
@@ -84,6 +84,8 @@ export async function apriCanale(codice, { da = 'telefono' } = {}) {
         let meta; try { meta = JSON.parse(dec.decode(await apri(unb64(m.message)))); } catch { continue; } // non è nostro
         if (meta.tipo !== 'livello') continue;
         const el = { id: m.id, tempo: m.time * 1000, nome: meta.nome, titolo: meta.titolo, aggiornato: meta.aggiornato, origine: meta.origine, da: meta.da };
+        // `serve(meta)` false: chi legge ha già questo livello, non si scarica né si apre
+        if (!serve(meta)) { out.push({ ...el, saltato: true }); continue; }
         try {
           let z = meta.z ? unb64(meta.z) : null;
           if (!z && m.attachment?.url) {

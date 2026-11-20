@@ -122,14 +122,22 @@ export async function bancaCanale(codice) {
   return {
     tipo: 'canale',
     async prova() { await c.leggi({ since: '1m' }); return true; },
+    /** Subito, senza rete: i livelli già sul telefono. */
+    locale() {
+      const q = new Set(leggiLS(Q, []));
+      return Object.entries(tutti()).map(([nome, l]) => ({ ...riassunto(nome, l.mappa, null), daMandare: q.has(nome) }));
+    },
     /** Prende dal canale i livelli nuovi del PC, rimanda quelli rimasti indietro, e dà l'elenco del telefono. */
     async elenco() {
       let avviso = '';
       try {
-        const arrivati = await c.leggi(), db = tutti();
+        const db0 = tutti();
+        // si scarica solo ciò che il telefono non ha, o ha più vecchio (l'overworld è un allegato pesante)
+        const serve = (meta) => meta.da === 'pc' && (!db0[meta.nome] || (prop(db0[meta.nome].mappa, 'aggiornato') || '') < (meta.aggiornato || ''));
+        const arrivati = await c.leggi({ serve }), db = tutti();
         let nuovi = 0, scaduti = 0;
         for (const l of arrivati) {
-          if (l.da !== 'pc') continue;
+          if (l.da !== 'pc' || l.saltato) continue;
           if (l.scaduto) { if (!db[l.nome]) scaduti++; continue; }
           if (!db[l.nome] || (prop(db[l.nome].mappa, 'aggiornato') || '') < (l.aggiornato || '')) { db[l.nome] = { mappa: l.mappa }; nuovi++; }
         }
@@ -137,8 +145,7 @@ export async function bancaCanale(codice) {
         if (scaduti) avviso = `${scaduti} livelli mandati dal PC sono scaduti nel canale: chiedi di rimandarli.`;
         await rimanda();
       } catch (err) { avviso = 'Il canale non risponde: vedi i livelli già sul telefono. ' + err.message; }
-      const q = new Set(leggiLS(Q, []));
-      const out = Object.entries(tutti()).map(([nome, l]) => ({ ...riassunto(nome, l.mappa, null), daMandare: q.has(nome) }));
+      const out = this.locale();
       out.avviso = avviso;
       return out;
     },

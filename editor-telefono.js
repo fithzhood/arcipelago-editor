@@ -60,11 +60,22 @@ async function apriElenco() {
   const st = $('#stato-banca'), ul = $('#elenco');
   if (!banca) { st.textContent = 'Per salvare i livelli e mandarli al PC serve il collegamento.'; ul.innerHTML = ''; $('#vai-chiave').hidden = false; return; }
   $('#vai-chiave').hidden = true;
-  st.textContent = 'Arrivo dei livelli dal PC in corso…';
-  try { elenco = await banca.elenco(); } catch (err) { st.textContent = err.message; return; }
+  // prima i livelli che il telefono ha già (subito), poi quelli nuovi dal canale
+  const mio = ++apriElenco.giro;
+  if (banca.locale) { elenco = banca.locale(); disegnaElenco('Controllo dei livelli nuovi dal PC in corso…'); }
+  else st.textContent = 'Caricamento dei livelli in corso…';
+  let nuovo;
+  try { nuovo = await banca.elenco(); } catch (err) { st.textContent = err.message; return; }
+  if (mio !== apriElenco.giro || $('#livelli').hidden) return; // nel frattempo sei passato altrove
+  elenco = nuovo;
+  disegnaElenco(elenco.avviso || (elenco.length ? '' : 'Ancora nessun livello: comincia con Nuovo livello, o chiedi al PC di mandarti quelli del gioco.'));
+}
+apriElenco.giro = 0;
+function disegnaElenco(stato) {
+  const st = $('#stato-banca'), ul = $('#elenco');
   elenco.sort((a, b) => b.aggiornato.localeCompare(a.aggiornato));
   const bozze = leggi('arc-editor-bozze', {});
-  st.textContent = elenco.avviso || (elenco.length ? '' : 'Ancora nessun livello: comincia con Nuovo livello, o chiedi al PC di mandarti quelli del gioco.');
+  st.textContent = stato;
   ul.innerHTML = '';
   // prima le bozze dei livelli nuovi mai salvati
   for (const [k, b] of Object.entries(bozze)) if (k.startsWith('nuovo:')) ul.appendChild(voce(prop(b.mappa, 'titolo') || 'Livello senza nome', 'bozza non salvata', () => apriEditor({ nome: null, sha: null, mappa: b.mappa, salvata: null, chiaveBozza: k })));
