@@ -28,10 +28,22 @@ function geometria(liv) {
 export function caricaLivello(def) {
   const H = def.mappa.length, W = def.mappa[0].length;
   const liv = { W, H, celle: [], terra: new Set(), solidi: new Set(), fuoco: new Set(), glifi: new Map(),
-    toroide: !!def.toroide, tratti: def.tratti || [], posti: def.posti || {}, zona: def.zona,
+    toroide: !!def.toroide, mondo: !!(def.mondo || def.toroide), tratti: def.tratti || [], posti: def.posti || {}, zona: def.zona,
     sigilli: new Map((def.sigilli || []).map((s) => [K(s.x, s.y), s])), meta: def.meta || null, titolo: def.titolo || null,
-    // la zona tratteggiata (come in Opera): si vince quando una lastra la riempie esattamente
+    // le zone tratteggiate (come in Opera): tutte le caselle in `sagoma`, e in `sagome` divise in zone
+    // (caselle che si toccano per un lato). Ogni zona va riempita esattamente da una lastra.
     sagoma: def.sagoma?.length ? new Set(def.sagoma.map(([x, y]) => K(x, y))) : null };
+  liv.sagome = liv.sagoma ? connessi(def.sagoma.map(([x, y]) => ({ x, y })), K).map((p) => new Set(p.map((c) => K(c.x, c.y)))) : [];
+  // le catene (21/11): ogni zona tratteggiata è il lucchetto di una catena sola. Nei sottolivelli
+  // tutte incatenano l'uscita; nell'overworld ognuna incatena il sigillo più vicino a lei.
+  liv.catene = liv.sagome.map((z, zona) => {
+    let dove = liv.mondo ? null : liv.meta, meglio = Infinity;
+    if (!dove) for (const s of liv.sigilli.values()) for (const k of z) {
+      const [x, y] = k.split(',').map(Number), d = Math.abs(x - s.x) + Math.abs(y - s.y);
+      if (d < meglio) { meglio = d; dove = [s.x, s.y]; }
+    }
+    return dove ? { zona, x: dove[0], y: dove[1] } : null;
+  }).filter(Boolean);
   geometria(liv);
   liv.trattoDi = (x, y) => liv.tratti.find((t) => x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h)?.nome ?? null;
   def.mappa.forEach((riga, y) => [...riga].forEach((c, x) => {
@@ -217,11 +229,15 @@ export class Gioco {
     const [nx, ny] = this.liv.av(c.x + dx, c.y + dy);
     // l'altro personaggio fa da ostacolo
     if (!this.calpestabile(nx, ny) || this.chiIn(nx, ny) >= 0) return [{ tipo: 'urto', chi: i, d: [dx, dy] }];
+    // una casella incatenata (l'uscita, o un sigillo dell'overworld, con il suo tratteggio ancora
+    // vuoto) non si oltrepassa: ci si sbatte contro
+    if (this.incatenata(nx, ny)) return [{ tipo: 'urto', chi: i, d: [dx, dy], catene: [nx, ny] }];
     // un sigillo chiuso non si attraversa: salirci vuol dire entrare nel suo sottolivello. Qui non è
     // una mossa: il personaggio resta dov'era, e la pagina apre il sottolivello.
     const sig = this.sigilloIn(nx, ny);
     if (sig) return [{ tipo: 'entra', chi: i, sigillo: sig, da: [c.x, c.y], a: [nx, ny] }];
     this.storia.push(copia(st));
+    const prima = this.sagomeRiempite();
     const ev = [{ tipo: 'cammina', chi: i, da: [c.x, c.y], a: [nx, ny] }];
     c.x = nx; c.y = ny;
     const sotto = this.lastraIn(nx, ny);
@@ -233,18 +249,29 @@ export class Gioco {
       if (!mossa[0]?.tipo.endsWith('-urto')) ev.push(...ricomponi(st, this.liv));
     }
     ev.push(...this.arrivi());
-    // nei sottolivelli: chi si comanda arriva alla meta (a piedi o portato da una lastra)
+    // le zone tratteggiate riempite o svuotate da questa mossa: l'uscita si accende o si spegne
+    const dopo = this.sagomeRiempite();
+    if (dopo.some((v, k) => v !== prima[k])) ev.push({ tipo: 'sagome', piene: dopo, accesa: dopo.every(Boolean) });
+    // nei sottolivelli: chi si comanda arriva all'uscita (a piedi o portato da una lastra), e l'uscita
+    // è accesa, cioè ogni zona tratteggiata è riempita
     const m = this.liv.meta, io = st.personaggi[i];
-    if (m && !io.caduto && io.x === m[0] && io.y === m[1]) { st.vinto = true; ev.push({ tipo: 'vince', chi: i }); }
-    else if (this.sagomaPiena()) { st.vinto = true; ev.push({ tipo: 'vince', chi: i, sagoma: true }); }
+    if (m && !io.caduto && io.x === m[0] && io.y === m[1] && this.uscitaAccesa()) { st.vinto = true; ev.push({ tipo: 'vince', chi: i }); }
     return ev;
   }
 
-  /** Una lastra occupa esattamente la zona tratteggiata (né più né meno caselle). */
-  sagomaPiena(st = this.stato) {
-    const z = this.liv.sagoma;
-    return !!z && st.lastre.some((l) => l.celle.length === z.size && l.celle.every((c) => z.has(K(c.x, c.y))));
+  /** Per ogni zona tratteggiata: se una lastra la occupa esattamente (né più né meno caselle). */
+  sagomeRiempite(st = this.stato) {
+    return this.liv.sagome.map((z) => st.lastre.some((l) => l.celle.length === z.size && l.celle.every((c) => z.has(K(c.x, c.y)))));
   }
+
+  /** Se la casella ha ancora almeno una catena chiusa (il suo tratteggio non è riempito). */
+  incatenata(x, y, st = this.stato) {
+    const piene = this.sagomeRiempite(st);
+    return this.liv.catene.some((c) => c.x === x && c.y === y && !piene[c.zona]);
+  }
+
+  /** L'uscita è libera quando tutte le sue catene sono aperte (subito, se non ce ne sono). */
+  uscitaAccesa(st = this.stato) { const m = this.liv.meta; return !m || !this.incatenata(m[0], m[1], st); }
 
   /** Chi entra in un tratto: ci si ricorda da dove (per il reset) e, la prima volta, lo si scopre. */
   arrivi() {

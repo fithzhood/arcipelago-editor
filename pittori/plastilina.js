@@ -159,8 +159,49 @@ export function crea(renderer, gioco, anim, opz = {}) {
   const sbuffo = (i) => (sbuffi[i] ??= bitorzola(palla(1, 12), 0.16, 1.4, i));
   const caselle = [];
   const casella = (i) => (caselle[i] ??= [bitorzola(new RoundedBoxGeometry(0.92, 0.26, 0.92, 4, 0.1), 0.05, 3, i), bitorzola(palla(0.34, 16), 0.1, 4, i)]);
+  // le catene (21/11, chieste da Luca al posto di acceso/spento) su una pietra incatenata: una per
+  // zona tratteggiata, ognuna col suo lucchetto d'ottone (una catena, un lucchetto). Una catena sola
+  // fa una croce da un angolo all'altro della casella, chiusa al centro; con più catene ognuna è una
+  // diagonale diversa e il suo lucchetto sta un po' fuori dal centro, sulla sua catena. Ogni catena è
+  // fatta di mezze catene che dal centro vanno verso un piolo sul bordo: aprendosi si sfilano verso fuori.
+  function catene(g, n) {
+    const anello = varia('anello', () => new THREE.TorusGeometry(0.055, 0.019, 6, 14));
+    const piolo = varia('piolo', () => bitorzola(new RoundedBoxGeometry(0.1, 0.16, 0.1, 2, 0.04), 0.01, 7));
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const tutto = new THREE.Group(), anelli = [], pioli = [];
+      const angoli = n === 1 ? [1, 3, 5, 7].map((q) => (q * Math.PI) / 4) : [0, Math.PI].map((q) => Math.PI / 4 + (k * Math.PI) / n + q);
+      for (const ang of angoli) {
+        // fin dove arriva la mezza catena: all'angolo sulle diagonali, al bordo della casella sulle altre
+        const r = Math.min(0.62, 0.46 / Math.max(Math.abs(Math.cos(ang)), Math.abs(Math.sin(ang)))), quanti = Math.max(3, Math.round((r - 0.1) / 0.092));
+        const mezza = new THREE.Group(); mezza.rotation.y = ang;
+        for (let i = 0; i < quanti; i++) {
+          const x = 0.09 + i * ((r - 0.12) / quanti), y = 0.22 - i * 0.022 * (6 / quanti);
+          const o = mesh(anello, '#5f5b6b', x, y, 0);
+          o.rotation.x = i % 2 ? Math.PI / 2 : 0; o.rotation.z = 0.18;
+          mezza.add(o); anelli.push({ o, x, y, i, quanti });
+        }
+        const pl = mesh(piolo, '#7b6f60', r, 0.1, 0); mezza.add(pl); pioli.push(pl);
+        tutto.add(mezza);
+      }
+      const lucchetto = new THREE.Group();
+      lucchetto.add(mesh(varia('lucchetto', () => bitorzola(new RoundedBoxGeometry(0.2, 0.17, 0.09, 3, 0.04), 0.008, 8)), '#c99a3e', 0, 0, 0));
+      lucchetto.add(mesh(varia('arco-lucchetto', () => new THREE.TorusGeometry(0.06, 0.02, 6, 14, Math.PI)), '#8d8a96', 0, 0.075, 0));
+      lucchetto.add(mesh(varia('toppa', () => palla(0.022, 10)), '#4a3a28', 0, -0.01, 0.045));
+      // col lucchetto un po' girato verso la telecamera; con più catene, ognuno sulla sua
+      const fuori = n === 1 ? 0 : 0.17, a0 = angoli[0];
+      const base = { x: Math.cos(a0) * fuori, z: -Math.sin(a0) * fuori + 0.03, y: 0.3 - (n === 1 ? 0 : 0.02) };
+      lucchetto.position.set(base.x, base.y, base.z); lucchetto.rotation.x = -0.35;
+      if (n > 1) lucchetto.scale.setScalar(0.8);
+      tutto.add(lucchetto);
+      g.add(tutto);
+      out.push({ tutto, anelli, pioli, lucchetto, base, grande: n === 1 ? 1.6 : 1.25 });
+    }
+    return out;
+  }
+
   // i sottolivelli (dentro un sigillo) hanno la meta o la zona tratteggiata
-  const sotto = !!(gioco.liv.meta || gioco.liv.sagoma);
+  const sotto = !gioco.liv.mondo && !!(gioco.liv.meta || gioco.liv.sagoma); // nell'overworld ora ci sono anche tratteggi
   const Z = sotto ? incanta(ZONE[opz.zona] || ZONE.iniziale) : ZONE[opz.zona] || ZONE.iniziale;
   let scintille = null, cortina = null;
   // gli attrezzi passati alle zone: il kit della plastilina più le varianti condivise e due materiali
@@ -299,7 +340,7 @@ export function crea(renderer, gioco, anim, opz = {}) {
       // nell'overworld i posti li dà la mappa (strato segni di Tiled)
       const dalla = liv.posti?.casa && [liv.posti.casa, liv.posti.arco || liv.posti.casa];
       // nei sottolivelli (quelli con la meta o la zona tratteggiata) niente casa né rovine: si è dentro il sigillo
-      const posti = liv.meta || liv.sagoma ? [] : opz.posti || dalla || [[liv.W * 0.15, -2.2], [liv.W * 0.85, -1.8]];
+      const posti = !liv.mondo && (liv.meta || liv.sagoma) ? [] : opz.posti || dalla || [[liv.W * 0.15, -2.2], [liv.W * 0.85, -1.8]];
       if (posti.length) Z.scenografia?.(k, posti, sorgenti);
       // sotto il quadro, lontani: isolotti di sfondo a maglie larghe, mai sotto la scenografia.
       // Non fanno ombra: sull'overworld finto raddoppiavano i triangoli del passaggio delle ombre
@@ -369,10 +410,34 @@ export function crea(renderer, gioco, anim, opz = {}) {
       alone.rotation.x = -Math.PI / 2; alone.position.y = 0.08; alone.renderOrder = 3; g.add(alone);
       materiali.push(segno.material, alone.material);
       g.userData = { segno, alone, fase: (p.x * 7 + p.y * 3) % 6 };
+      if (p.catene?.length) g.userData.catene = catene(g, p.catene.length);
       return g;
     },
     pietraPosa(o, p, t) {
-      const { segno, alone, fase } = o.userData, pulsa = 0.5 + 0.5 * Math.sin(t * 2.2 + fase);
+      const { segno, alone, fase, catene: C } = o.userData, pulsa = 0.5 + 0.5 * Math.sin(t * 2.2 + fase);
+      if (C) C.forEach((C, k) => {
+        // la catena si apre: il suo lucchetto salta via girando, gli anelli si sfilano verso il bordo
+        // e affondano, poi i pioli; quando una lastra esce dalla sua zona torna tutto indietro
+        const a = 1 - (p.catene[k]?.chiusa ?? 0), e = a * a * (3 - 2 * a);
+        C.tutto.visible = a < 0.999;
+        C.lucchetto.position.y = C.base.y + e * 0.45 - e * e * 0.25;
+        C.lucchetto.rotation.z = e * 2.4;
+        C.lucchetto.scale.setScalar(Math.max(0.001, C.grande * (1 - e * e)));
+        C.anelli.forEach(({ o, x, y, i, quanti }) => {
+          const ritardo = Math.min(1, Math.max(0, e * 1.6 - (quanti - 1 - i) * 0.1));
+          o.position.x = x + ritardo * 0.42;
+          o.position.y = y - ritardo * 0.3;
+          o.scale.setScalar(Math.max(0.001, 1 - ritardo));
+        });
+        // i pioli affondano dopo gli anelli: a catena aperta non resta niente
+        const giu = Math.min(1, Math.max(0, e * 1.4 - 0.4));
+        for (const pl of C.pioli) { pl.position.y = 0.1 - giu * 0.18; pl.scale.setScalar(Math.max(0.001, 1 - giu)); }
+        // chiusa, la catena trema appena, come tirata; urtata dal coniglio sbatte e il lucchetto dondola
+        const s = p.scuoti || 0;
+        C.tutto.position.y = 0.006 * Math.sin(t * 9 + fase + k) * (1 - a);
+        C.tutto.rotation.y = Math.sin(t * 38 + k) * 0.07 * s;
+        C.lucchetto.rotation.z += Math.sin(t * 26 + k) * 0.5 * s;
+      });
       // spento: il segno si scurisce fino al colore del solco
       segno.material.color.setRGB(0.3 + 0.7 * p.luce, 0.27 + 0.42 * p.luce, 0.24 - 0.12 * p.luce);
       alone.material.opacity = p.luce * (0.18 + 0.12 * pulsa) + p.imp * 0.4;

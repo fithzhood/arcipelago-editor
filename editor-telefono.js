@@ -105,7 +105,7 @@ async function apriDallaBanca(l) {
 const tela = $('#mappa'), ctx = tela.getContext('2d');
 let vista = { x: 0, y: 0, s: 1 }, pr = 1;
 const S = (n) => corrente.mappa.layers.find((l) => l.type === 'tilelayer' && l.name === n).data;
-const mondo = () => !!prop(corrente.mappa, 'toroide');
+const mondo = () => !!(prop(corrente.mappa, 'mondo') || prop(corrente.mappa, 'toroide'));
 
 function apriEditor(c) {
   corrente = { ...c, mappa: completa(copia(c.mappa)) };
@@ -331,7 +331,7 @@ function calcola() {
       out.className = fuori.length || sig.length ? 'male' : 'bene';
       return;
     }
-    if (!def.meta && !def.sagoma) { out.textContent = 'Manca la meta o la zona tratteggiata (Segni).'; out.className = 'male'; return; }
+    if (!def.meta) { out.textContent = 'Manca la meta (Segni): è la casella d’uscita, che si accende quando ogni zona tratteggiata è riempita.'; out.className = 'male'; return; }
     const r = misura(def, { max: 80000 });
     if (r.irrisolvibile) { out.textContent = 'Non si risolve.'; out.className = 'male'; return; }
     out.textContent = `Si risolve in ${r.mosse} mosse · ${r.bivi} bivi su ${r.configurazioni} posizioni delle lastre · ${r.vicoli}% vicoli ciechi`;

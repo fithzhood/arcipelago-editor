@@ -9,7 +9,7 @@ export function daTiled(m) {
   // i bit alti dicono se la tessera è capovolta: qui non contano
   const tessera = (l, x, y) => { const g = (l?.data?.[y * W + x] ?? 0) & 0x1fffffff; return g ? CATALOGO[g - fg] : null; };
   const prop = Object.fromEntries((m.properties || []).map((p) => [p.name, p.value]));
-  const def = { mappa: [], lastre: [], glifi: [], posti: {}, tratti: [], toroide: !!prop.toroide, zona: prop.zona || 'iniziale', titolo: prop.titolo || null };
+  const def = { mappa: [], lastre: [], glifi: [], posti: {}, tratti: [], toroide: !!prop.toroide, mondo: !!(prop.mondo || prop.toroide), zona: prop.zona || 'iniziale', titolo: prop.titolo || null };
   const terreno = strato('terreno'), lastre = strato('lastre'), glifi = strato('glifi'), segni = strato('segni');
   for (let y = 0; y < H; y++) {
     let riga = '';

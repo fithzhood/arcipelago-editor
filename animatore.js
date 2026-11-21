@@ -22,11 +22,15 @@ export class Animatore {
     // i tratti scoperti, per le nuvole: si aprono quando arriva l'evento, non prima
     this.scoperti = new Set(gioco.esplorati);
     // le pietre: i sigilli (accesi finché il loro sottolivello non è risolto) e, nei sottolivelli,
-    // la meta, la pietra gemella sempre accesa
+    // l'uscita, la pietra gemella, incatenata finché resta una zona tratteggiata vuota
     this.pietre = [...gioco.liv.sigilli.values()].map((s) => ({ x: s.x, y: s.y, livello: s.livello, meta: false, luce: gioco.risolti.has(s.livello) ? 0 : 1, imp: 0 }));
+    // le zone tratteggiate: `piena` cambia quando la lastra entra o esce (a fine animazione, non prima)
+    this.sagome = gioco.liv.sagome.map(() => ({ piena: 0, luce: 0 }));
+    // l'uscita è sempre accesa
     if (gioco.liv.meta) this.pietre.push({ x: gioco.liv.meta[0], y: gioco.liv.meta[1], meta: true, luce: 1, imp: 0 });
-    // la zona tratteggiata: `piena` diventa 1 quando la lastra ci entra (a fine animazione, non prima)
-    this.sagoma = { piena: 0, luce: 0 };
+    // le catene di ogni pietra, una per zona tratteggiata (il suo lucchetto): `chiusa` 1 = incatenata,
+    // scende a 0 quando la sua zona è riempita
+    for (const p of this.pietre) p.catene = gioco.liv.catene.filter((c) => c.x === p.x && c.y === p.y).map((c) => ({ zona: c.zona, chiusa: 1 }));
     // nel mondo che si richiude le pose restano continue durante le animazioni (una lastra che passa
     // il bordo va da 47 a 49, non salta a 1): `dw` dà la distanza più corta, e il pittore disegna
     // ogni cosa nella copia del mondo più vicina alla telecamera
@@ -49,6 +53,9 @@ export class Animatore {
       if (c) Object.assign(a, { x: c.x, y: 0, z: c.y, rx: 0, ry: 0, rz: 0, s: 1, lastra });
     }
     st.personaggi.forEach((co, i) => Object.assign(this.pers[i], { x: co.x, y: 0, z: co.y, ry: Math.atan2(co.verso[0], co.verso[1]), rz: 0, vis: !co.caduto, salto: 0 }));
+    const piene = this.gioco.sagomeRiempite();
+    this.sagome.forEach((z, i) => { z.piena = piene[i] ? 1 : 0; if (camera) z.luce = z.piena; });
+    if (camera) for (const p of this.pietre) for (const c of p.catene) c.chiusa = piene[c.zona] ? 0 : 1;
     if (camera) { const co = this.con, m = this.miraPer(co.x, co.z); this.mira.x = m.x; this.mira.z = m.z; }
   }
   interrompi() { this.coda = []; this.corrente = null; this.trattieni = false; this.sincronizza(); }
@@ -83,7 +90,7 @@ export class Animatore {
   }
   a_urto(e) {
     const k = this.pers[e.chi]; let x0, z0;
-    return { dur: 0.14, inizio: () => { x0 = k.x; z0 = k.z; k.ry = Math.atan2(e.d[0], e.d[1]); },
+    return { dur: 0.14, inizio: () => { x0 = k.x; z0 = k.z; k.ry = Math.atan2(e.d[0], e.d[1]); if (e.catene) { const p = this.pietre.find((q) => q.x === e.catene[0] && q.y === e.catene[1]); if (p) p.scuoti = 1; } },
       passo: (t) => { const s = Math.sin(Math.PI * t) * 0.14; k.x = x0 + e.d[0] * s; k.z = z0 + e.d[1] * s; } };
   }
   a_glifo(e) {
@@ -218,10 +225,19 @@ export class Animatore {
     const k = this.con;
     return { dur: 0.5, passo: (t) => { k.salto = Math.sin(Math.PI * t) * 0.35; }, fine: () => { k.salto = 0; } };
   }
-  /** Arrivati alla meta: due saltelli sulla pietra accesa, poi la pagina riporta nell'overworld. */
+  /** Una lastra entra in una zona tratteggiata o ne esce: la zona cambia colore, la sua catena si apre o si richiude. */
+  a_sagome(e) {
+    return { dur: 0, inizio: () => {
+      e.piene.forEach((v, i) => {
+        if (v && !this.sagome[i].piena) for (const p of this.pietre) if (p.catene.some((c) => c.zona === i)) p.imp = 1;
+        this.sagome[i].piena = v ? 1 : 0;
+      });
+    } };
+  }
+  /** Arrivati all'uscita accesa: due saltelli sulla pietra, poi la pagina riporta nell'overworld. */
   a_vince(e) {
     const k = this.pers[e.chi], p = this.pietre.find((q) => q.meta);
-    return { dur: 0.75, inizio: () => { this.trattieni = true; if (p) p.imp = 1; if (e.sagoma) this.sagoma.piena = 1; },
+    return { dur: 0.75, inizio: () => { this.trattieni = true; if (p) p.imp = 1; },
       passo: (t) => { k.salto = Math.abs(Math.sin(Math.PI * 2 * t)) * 0.32 * (1 - t * 0.4); },
       fine: () => { k.salto = 0; this.opz.suVince?.(); } };
   }
@@ -252,8 +268,10 @@ export class Animatore {
       q.imp = Math.max(0, q.imp - dt * 2.5);
       q.alt = (1 - q.cop) * (0.06 + 0.05 * Math.sin(this.tempo * 1.8 + q.fase));
     }
-    this.sagoma.luce += (this.sagoma.piena - this.sagoma.luce) * Math.min(1, dt * 5);
+    for (const z of this.sagome) z.luce += (z.piena - z.luce) * Math.min(1, dt * 5);
     for (const p of this.pietre) {
+      p.scuoti = Math.max(0, (p.scuoti || 0) - dt * 2.2);
+      for (const c of p.catene) { const v = 1 - this.sagome[c.zona].piena, d = v - c.chiusa; c.chiusa += Math.sign(d) * Math.min(Math.abs(d), dt * 1.4); }
       const vuole = p.meta || !this.gioco.risolti.has(p.livello) ? 1 : 0;
       p.luce += (vuole - p.luce) * Math.min(1, dt * 2.5);
       p.imp = Math.max(0, p.imp - dt * 1.5);

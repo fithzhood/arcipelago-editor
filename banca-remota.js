@@ -14,7 +14,7 @@ const aBase64 = (testo) => {
 };
 const daBase64 = (c) => new TextDecoder().decode(Uint8Array.from(atob(c.replace(/\s/g, '')), (ch) => ch.charCodeAt(0)));
 const prop = (m, n) => m.properties?.find((p) => p.name === n)?.value;
-const riassunto = (nome, m, sha) => ({ nome, sha, titolo: prop(m, 'titolo') || nome, aggiornato: prop(m, 'aggiornato') || '', origine: prop(m, 'origine') || '', mondo: !!prop(m, 'toroide') });
+const riassunto = (nome, m, sha) => ({ nome, sha, titolo: prop(m, 'titolo') || nome, aggiornato: prop(m, 'aggiornato') || '', origine: prop(m, 'origine') || '', mondo: !!(prop(m, 'mondo') || prop(m, 'toroide')) });
 
 export function bancaGitHub(chiave) {
   const h = { Authorization: 'Bearer ' + chiave, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };

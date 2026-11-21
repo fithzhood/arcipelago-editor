@@ -33,7 +33,7 @@ export async function apriProva(def, box, { suChiudi } = {}) {
   // sul telefono in verticale un sottolivello largo non ci sta: si parte più lontani (poi le due dita)
   // (misurato: a zoom z si vedono circa 15·a·z caselle di larghezza, con a = larghezza/altezza);
   // e la telecamera resta al centro del quadro invece di seguire il coniglio, che stava sempre a sinistra
-  if (!gioco.liv.toroide) {
+  if (!gioco.liv.mondo) {
     const L = gioco.liv, a = scena.clientWidth / Math.max(1, scena.clientHeight), cx = L.W / 2 - 0.5, cz = L.H / 2 - 0.5;
     anim.zoom = Math.min(2.4, Math.max(1.45, (L.W + 1.5) / (15 * a)));
     anim.miraPer = () => ({ x: cx, z: cz }); anim.sincronizza(true);

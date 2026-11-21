@@ -125,7 +125,7 @@ export function esplora(liv, { max = 400000, risolti = null } = {}) {
     }
   }
   const attesi = [...new Set(liv.tratti.map((t) => t.nome))];
-  if (liv.meta || liv.sagoma) attesi.push('meta');
+  if (!liv.mondo && (liv.meta || liv.sagoma)) attesi.push('meta');
   return { stati: visti.size, completa: i >= coda.length, arrivi, giriInfiniti, mancanti: attesi.filter((n) => !arrivi.has(n)) };
 }
 

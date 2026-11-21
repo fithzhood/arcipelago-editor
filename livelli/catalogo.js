@@ -40,7 +40,7 @@ for (const fantasma of [false, true]) {
 }
 // segni
 for (const nome of ['coniglio', 'gatto', 'casa', 'arco']) metti({ strato: 'segni', nome, segno: nome });
-// la meta di un sottolivello: la pietra gemella del sigillo, accesa
+// la meta (l'uscita) di un sottolivello: la pietra gemella del sigillo, accesa quando ogni zona tratteggiata è riempita
 metti({ strato: 'segni', nome: 'meta', segno: 'meta' });
 // una casella della zona tratteggiata (come in Opera): una lastra deve riempirla tutta, esattamente
 metti({ strato: 'segni', nome: 'sagoma', segno: 'sagoma' });

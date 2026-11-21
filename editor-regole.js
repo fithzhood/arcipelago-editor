@@ -43,7 +43,7 @@ export function togliSigillo(m, o) { const g = gruppo(m, 'sigilli'); g.splice(g.
  * Restituisce { avviso?, scelto? (il sigillo toccato o creato), tolto? (il sigillo tolto) }.
  */
 export function applica(m, T, x, y) {
-  const W = m.width, H = m.height, i = y * W + x, S = (n) => strato(m, n), mondo = !!prop(m, 'toroide');
+  const W = m.width, H = m.height, i = y * W + x, S = (n) => strato(m, n), mondo = !!(prop(m, 'mondo') || prop(m, 'toroide')), giro = !!prop(m, 'toroide');
   if (T.tipo === 'gomma') {
     for (const s of ['segni', 'glifi', 'lastre']) if (S(s)[i]) { S(s)[i] = 0; return {}; }
     const sig = sigilloIn(m, x, y);
@@ -61,7 +61,7 @@ export function applica(m, T, x, y) {
       const [cx, cy] = coda.pop();
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         let nx = cx + dx, ny = cy + dy;
-        if (mondo) { nx = (nx + W) % W; ny = (ny + H) % H; } // il mondo si richiude
+        if (giro) { nx = (nx + W) % W; ny = (ny + H) % H; } // il mondo si richiude
         if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
         if (d[ny * W + nx] === g) { d[ny * W + nx] = 0; coda.push([nx, ny]); }
       }

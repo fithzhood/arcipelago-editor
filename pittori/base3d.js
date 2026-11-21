@@ -34,9 +34,9 @@ export class Base3D {
     if (this.segno) this.scene.add(this.segno);
     // le pietre dei sigilli e la meta: si accendono e si spengono, quindi non vanno fra gli statici
     this.pietre = cfg.pietra ? anim.pietre.map((p) => { const o = cfg.pietra(p); this.scene.add(o); return o; }) : [];
-    // la zona tratteggiata dei sottolivelli a sagoma
-    this.sagoma = liv.sagoma && cfg.sagoma ? cfg.sagoma([...liv.sagoma].map((k) => k.split(',').map(Number))) : null;
-    if (this.sagoma) this.scene.add(this.sagoma);
+    // le zone tratteggiate dei sottolivelli, una per una (ognuna diventa verde quando è riempita)
+    this.sagome = cfg.sagoma ? liv.sagome.map((z) => cfg.sagoma([...z].map((k) => k.split(',').map(Number)))) : [];
+    for (const o of this.sagome) this.scene.add(o);
 
     // nuvole sull'inesplorato e nuvole profonde
     const rnd = casuale(23);
@@ -228,7 +228,7 @@ export class Base3D {
       const [x, z] = this.vicino(p.x, p.y); o.position.set(x, 0, z);
       this.cfg.pietraPosa?.(o, p, A.tempo);
     });
-    if (this.sagoma) this.cfg.sagomaPosa?.(this.sagoma, A.sagoma.luce, A.tempo);
+    this.sagome.forEach((o, i) => this.cfg.sagomaPosa?.(o, A.sagome[i].luce, A.tempo));
     A.glifi.forEach((q, i) => {
       const o = this.glifi[i], u = o.userData;
       const [gx, gz] = this.vicino(q.g.x, q.g.y);
